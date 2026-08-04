@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR 코드 생성기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap');
+
+  :root{
+    --paper:#f2f1ec;
+    --paper-line: rgba(20,20,20,0.09);
+    --ink:#161616;
+    --ink-soft:#5b5b56;
+    --spot:#ff5a1f;      /* spot color, like a print registration mark */
+    --spot-dim: #ffe1d1;
+    --card:#ffffff;
+    --ok:#1c7a4a;
+    --err:#c23a2b;
+    --radius: 2px;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans KR','IBM Plex Mono',monospace;
+    min-height:100vh;
+  }
+
+  /* faint grid, like graph/spec paper */
+  body{
+    background-image:
+      linear-gradient(var(--paper-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  .wrap{
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 18px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--spot);
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+
+  h1{
+    font-size: 30px;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .spec-no{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: right;
+    line-height: 1.6;
+  }
+
+  main{
+    display:grid;
+    grid-template-columns: minmax(0,1fr) 380px;
+    gap: 40px;
+    align-items: start;
+  }
+
+  @media (max-width: 860px){
+    main{ grid-template-columns: 1fr; }
+  }
+
+  /* ---- form / order sheet ---- */
+  .field{
+    margin-bottom: 28px;
+  }
+
+  .field-label{
+    display:flex;
+    align-items:baseline;
+    gap: 10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .field-label .num{
+    color: var(--spot);
+  }
+
+  .field-label .req{
+    font-size: 10px;
+    color: var(--err);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+  }
+
+  .field-label .opt{
+    font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+
+  .leader{
+    flex: 1;
+    border-bottom: 1px dotted rgba(20,20,20,0.35);
+    height: 0;
+    transform: translateY(-3px);
+  }
+
+  input[type="text"], input[type="url"]{
+    width: 100%;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 15px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--ink);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: var(--radius);
+    outline: none;
+  }
+
+  input[type="text"]:focus, input[type="url"]:focus{
+    outline: 2px solid var(--spot);
+    outline-offset: 1px;
+  }
+
+  input[type="text"]::placeholder{ color: #a9a89f; }
+
+  .hint{
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    font-family:'IBM Plex Sans KR', sans-serif;
+  }
+
+  .error-text{
+    font-size: 12px;
+    color: var(--err);
+    margin-top: 6px;
+    display:none;
+    font-weight: 600;
+  }
+
+  .color-row{
+    display:flex;
+    align-items:center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .swatch-input{
+    -webkit-appearance:none;
+    appearance:none;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius);
+    cursor:pointer;
+    background: none;
+  }
+  .swatch-input::-webkit-color-swatch-wrapper{ padding:4px; }
+  .swatch-input::-webkit-color-swatch{ border:none; border-radius:1px; }
+
+  .hex-value{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-soft);
+    border: 1px solid var(--paper-line);
+    padding: 6px 10px;
+    background: var(--card);
+    border-radius: var(--radius);
+  }
+
+  .preset-dots{
+    display:flex;
+    gap: 8px;
+  }
+  .preset-dot{
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0,0,0,0.15);
+    cursor:pointer;
+    padding:0;
+  }
+  .preset-dot:hover{ outline: 2px solid var(--ink); outline-offset:2px; }
+
+  .reset-color{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  /* logo upload */
+  .dropzone{
+    border: 1.5px dashed rgba(20,20,20,0.4);
+    border-radius: var(--radius);
+    padding: 18px;
+    display:flex;
+    align-items:center;
+    gap: 14px;
+    background: var(--card);
+    cursor: pointer;
+    transition: border-color .15s ease;
+  }
+  .dropzone:hover, .dropzone.dragover{
+    border-color: var(--spot);
+  }
+  .dropzone input{ display:none; }
+
+  .logo-thumb{
+    width: 44px; height: 44px;
+    border: 1px solid var(--paper-line);
+    border-radius: var(--radius);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 12px 12px;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .logo-thumb img{ max-width:100%; max-height:100%; display:block; }
+  .logo-thumb .plus{ color: var(--ink-soft); font-size: 20px; font-weight: 300; }
+
+  .dropzone-text{
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-family:'IBM Plex Sans KR', sans-serif;
+  }
+  .dropzone-text strong{ color: var(--ink); font-weight:600; }
+
+  .remove-logo{
+    margin-left: auto;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--err);
+    background: none;
+    border: 1px solid var(--err);
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    display:none;
+  }
+
+  /* ---- preview card / specimen ---- */
+  .specimen{
+    position: sticky;
+    top: 32px;
+    background: var(--card);
+    border: 1.5px solid var(--ink);
+    padding: 28px;
+    position: relative;
+  }
+
+  /* registration / crop marks — the signature detail */
+  .crop{
+    position:absolute;
+    width: 16px;
+    height: 16px;
+    pointer-events:none;
+  }
+  .crop::before, .crop::after{
+    content:"";
+    position:absolute;
+    background: var(--ink);
+  }
+  .crop::before{ width:16px; height:1.5px; top:7px; left:0; }
+  .crop::after{ width:1.5px; height:16px; left:7px; top:0; }
+  .crop.tl{ top:-8px; left:-8px; }
+  .crop.tr{ top:-8px; right:-8px; }
+  .crop.bl{ bottom:-8px; left:-8px; }
+  .crop.br{ bottom:-8px; right:-8px; }
+
+  .specimen-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--paper-line);
+  }
+
+  .specimen-label .dot{
+    display:inline-block;
+    width: 7px; height:7px;
+    border-radius:50%;
+    background: var(--ink-soft);
+    margin-right:6px;
+  }
+  .specimen-label.ready .dot{ background: var(--ok); }
+
+  #qr-holder{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height: 280px;
+    background:
+      repeating-conic-gradient(#f6f6f2 0% 25%, #fff 0% 50%) 50% / 16px 16px;
+    border: 1px solid var(--paper-line);
+    padding: 20px;
+  }
+
+  #qr-holder canvas{
+    max-width: 100%;
+    height: auto;
+    display:block;
+  }
+
+  .placeholder{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align:center;
+    line-height: 1.7;
+  }
+
+  .actions{
+    display:flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  button.primary{
+    flex:1;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 13px 16px;
+    background: var(--ink);
+    color: var(--paper);
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius);
+    cursor:pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  button.primary:hover:not(:disabled){
+    background: var(--spot);
+    border-color: var(--spot);
+    color: #fff;
+  }
+  button.primary:disabled{
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .meta-row{
+    display:flex;
+    justify-content:space-between;
+    margin-top: 16px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+
+  button.primary:focus-visible,
+  input:focus-visible,
+  .dropzone:focus-visible,
+  .preset-dot:focus-visible{
+    outline: 2px solid var(--spot);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div>
+      <p class="eyebrow">Signage &amp; Print Utility</p>
+      <h1>QR 코드 생성기</h1>
+    </div>
+    <div class="spec-no">
+      SPEC NO. QR&#8209;001<br>
+      ERROR CORRECTION: AUTO
+    </div>
+  </header>
+
+  <main>
+    <!-- ORDER SHEET -->
+    <section>
+
+      <div class="field">
+        <div class="field-label">
+          <span><span class="num">01</span> &nbsp;대상 URL</span>
+          <span class="leader"></span>
+          <span class="req">필수</span>
+        </div>
+        <input type="url" id="url-input" placeholder="https://example.com" autocomplete="off">
+        <p class="error-text" id="url-error">올바른 URL 형식이 아닙니다. (예: https://example.com)</p>
+        <p class="hint">QR 코드로 변환할 웹사이트 주소를 입력하세요.</p>
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <span><span class="num">02</span> &nbsp;코드 색상</span>
+          <span class="leader"></span>
+          <span class="opt">선택 · 기본값 검정</span>
+        </div>
+        <div class="color-row">
+          <input type="color" id="color-input" class="swatch-input" value="#161616">
+          <span class="hex-value" id="hex-display">#161616</span>
+          <div class="preset-dots" id="preset-dots"></div>
+          <button type="button" class="reset-color" id="reset-color">기본값(검정)으로</button>
+        </div>
+        <p class="hint">밝은 색상은 스캔 인식률이 낮아질 수 있어요. 어두운 색상을 권장합니다.</p>
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <span><span class="num">03</span> &nbsp;회사 로고</span>
+          <span class="leader"></span>
+          <span class="opt">선택</span>
+        </div>
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="로고 업로드">
+          <div class="logo-thumb" id="logo-thumb"><span class="plus">＋</span></div>
+          <div class="dropzone-text">
+            <strong>클릭하여 로고 업로드</strong><br>
+            PNG, JPG, SVG · QR 코드 중앙에 작게 표시됩니다
+          </div>
+          <button type="button" class="remove-logo" id="remove-logo">제거</button>
+          <input type="file" id="logo-input" accept="image/*">
+        </div>
+        <p class="hint">로고를 추가하면 오류 복원력이 자동으로 최고 단계(H)로 조정됩니다.</p>
+      </div>
+
+    </section>
+
+    <!-- PREVIEW SPECIMEN -->
+    <aside class="specimen">
+      <span class="crop tl"></span><span class="crop tr"></span>
+      <span class="crop bl"></span><span class="crop br"></span>
+
+      <div class="specimen-label" id="specimen-label">
+        <span><span class="dot"></span>PREVIEW</span>
+        <span id="module-count">—</span>
+      </div>
+
+      <div id="qr-holder">
+        <p class="placeholder" id="placeholder">URL을 입력하면<br>QR 코드가 여기에 표시됩니다</p>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="download-btn" disabled>PNG로 다운로드</button>
+      </div>
+
+      <div class="meta-row">
+        <span id="ec-level">오류 복원: —</span>
+        <span id="size-label">1000×1000px</span>
+      </div>
+    </aside>
+  </main>
+
+</div>
+
+<script>
+(function(){
+  const urlInput = document.getElementById('url-input');
+  const urlError = document.getElementById('url-error');
+  const colorInput = document.getElementById('color-input');
+  const hexDisplay = document.getElementById('hex-display');
+  const resetColorBtn = document.getElementById('reset-color');
+  const presetDotsWrap = document.getElementById('preset-dots');
+  const dropzone = document.getElementById('dropzone');
+  const logoInput = document.getElementById('logo-input');
+  const logoThumb = document.getElementById('logo-thumb');
+  const removeLogoBtn = document.getElementById('remove-logo');
+  const qrHolder = document.getElementById('qr-holder');
+  const placeholder = document.getElementById('placeholder');
+  const downloadBtn = document.getElementById('download-btn');
+  const specimenLabel = document.getElementById('specimen-label');
+  const moduleCountEl = document.getElementById('module-count');
+  const ecLevelEl = document.getElementById('ec-level');
+
+  const DEFAULT_COLOR = '#161616';
+  const PRESETS = ['#161616', '#0F2A43', '#1C7A4A', '#C23A2B', '#5b3a8c'];
+
+  let logoImage = null;   // HTMLImageElement
+  let currentCanvas = null;
+  let debounceTimer = null;
+
+  // build preset dots
+  PRESETS.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'preset-dot';
+    b.style.background = c;
+    b.title = c;
+    b.addEventListener('click', () => {
+      colorInput.value = c;
+      hexDisplay.textContent = c.toUpperCase();
+      render();
+    });
+    presetDotsWrap.appendChild(b);
+  });
+
+  function isValidUrl(value){
+    try{
+      const u = new URL(value);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    }catch(e){
+      return false;
+    }
+  }
+
+  colorInput.addEventListener('input', () => {
+    hexDisplay.textContent = colorInput.value.toUpperCase();
+    render();
+  });
+
+  resetColorBtn.addEventListener('click', () => {
+    colorInput.value = DEFAULT_COLOR;
+    hexDisplay.textContent = DEFAULT_COLOR.toUpperCase();
+    render();
+  });
+
+  urlInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(render, 250);
+  });
+
+  // logo upload
+  dropzone.addEventListener('click', (e) => {
+    if(e.target.closest('#remove-logo')) return;
+    logoInput.click();
+  });
+  dropzone.addEventListener('keydown', (e) => {
+    if(e.target.closest && e.target.closest('#remove-logo')) return;
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); logoInput.click(); }
+  });
+
+  logoInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    loadLogoFile(file);
+  });
+
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(file) loadLogoFile(file);
+  });
+
+  function loadLogoFile(file){
+    if(!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        logoImage = img;
+        logoThumb.innerHTML = '';
+        const thumbImg = document.createElement('img');
+        thumbImg.src = ev.target.result;
+        logoThumb.appendChild(thumbImg);
+        removeLogoBtn.style.display = 'inline-block';
+        render();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removeLogoBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    logoImage = null;
+    logoInput.value = '';
+    logoThumb.innerHTML = '<span class="plus">＋</span>';
+    removeLogoBtn.style.display = 'none';
+    render();
+  });
+
+  function render(){
+    const value = urlInput.value.trim();
+
+    if(!value){
+      urlError.style.display = 'none';
+      urlInput.style.borderColor = 'var(--ink)';
+      showPlaceholder('URL을 입력하면<br>QR 코드가 여기에 표시됩니다');
+      return;
+    }
+
+    if(!isValidUrl(value)){
+      urlError.style.display = 'block';
+      urlInput.style.borderColor = 'var(--err)';
+      showPlaceholder('유효한 URL을 입력해주세요');
+      return;
+    }
+
+    urlError.style.display = 'none';
+    urlInput.style.borderColor = 'var(--ink)';
+
+    const ecLevel = logoImage ? 'H' : 'M';
+    drawQr(value, colorInput.value, ecLevel);
+  }
+
+  function showPlaceholder(html){
+    qrHolder.innerHTML = '';
+    const p = document.createElement('p');
+    p.className = 'placeholder';
+    p.innerHTML = html;
+    qrHolder.appendChild(p);
+    downloadBtn.disabled = true;
+    currentCanvas = null;
+    specimenLabel.classList.remove('ready');
+    moduleCountEl.textContent = '—';
+    ecLevelEl.textContent = '오류 복원: —';
+  }
+
+  function drawQr(text, colorHex, ecLevel){
+    let qr;
+    try{
+      qr = qrcode(0, ecLevel);
+      qr.addData(text);
+      qr.make();
+    }catch(err){
+      showPlaceholder('입력값이 너무 길어 코드를 생성할 수 없습니다');
+      return;
+    }
+
+    const moduleCount = qr.getModuleCount();
+    const targetSize = 1000;
+    const quiet = 4; // quiet zone in modules
+    const totalModules = moduleCount + quiet * 2;
+    const cell = Math.floor(targetSize / totalModules);
+    const size = cell * totalModules;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+
+    ctx.fillStyle = colorHex;
+    for(let row = 0; row < moduleCount; row++){
+      for(let col = 0; col < moduleCount; col++){
+        if(qr.isDark(row, col)){
+          const x = (col + quiet) * cell;
+          const y = (row + quiet) * cell;
+          ctx.fillRect(x, y, cell, cell);
+        }
+      }
+    }
+
+    if(logoImage){
+      const logoBoxRatio = 0.24;
+      const logoBox = size * logoBoxRatio;
+      const pad = logoBox * 0.16;
+      const cx = size / 2;
+      const cy = size / 2;
+
+      // white rounded backing plate so logo stays legible
+      ctx.fillStyle = '#ffffff';
+      roundRect(ctx, cx - logoBox/2 - pad, cy - logoBox/2 - pad, logoBox + pad*2, logoBox + pad*2, logoBox*0.14);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = Math.max(1, size*0.001);
+      ctx.stroke();
+
+      // fit logo within box, preserving aspect ratio
+      const ratio = Math.min(logoBox / logoImage.width, logoBox / logoImage.height);
+      const lw = logoImage.width * ratio;
+      const lh = logoImage.height * ratio;
+      ctx.drawImage(logoImage, cx - lw/2, cy - lh/2, lw, lh);
+    }
+
+    qrHolder.innerHTML = '';
+    canvas.style.width = '260px';
+    canvas.style.imageRendering = 'pixelated';
+    qrHolder.appendChild(canvas);
+
+    currentCanvas = canvas;
+    downloadBtn.disabled = false;
+    specimenLabel.classList.add('ready');
+    moduleCountEl.textContent = moduleCount + '×' + moduleCount + ' MODULES';
+    ecLevelEl.textContent = '오류 복원: ' + ecLevel + (logoImage ? ' (로고 적용)' : '');
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+  }
+
+  downloadBtn.addEventListener('click', () => {
+    if(!currentCanvas) return;
+    const link = document.createElement('a');
+    link.download = 'qrcode.png';
+    link.href = currentCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+})();
+</script>
+
+</body>
+</html>
